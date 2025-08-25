@@ -70,7 +70,7 @@ export class ArabicOCRService {
         ? await this.preprocessImageForArabic(buffer, config.enhanceForHandwriting)
         : buffer;
 
-      const worker = await createWorker(config.languages, config.oem ?? OEM.LSTM_ONLY);
+      const worker = await createWorker(config.languages);
       
       // Configure Tesseract for Arabic text recognition
       await this.configureWorkerForArabic(worker, config);

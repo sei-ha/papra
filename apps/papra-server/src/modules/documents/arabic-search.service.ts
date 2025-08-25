@@ -253,7 +253,7 @@ export class ArabicSearchService {
         results.push({
           documentId: docId,
           relevanceScore: score,
-          matchedText: highlights.length > 0 ? document.originalText.substring(highlights[0].start, highlights[0].end) : '',
+          matchedText: highlights.length > 0 && highlights[0] ? document.originalText.substring(highlights[0].start, highlights[0].end) : '',
           context,
           matchType: this.determineMatchType(document, searchTerms),
           highlights,
@@ -344,6 +344,10 @@ export class ArabicSearchService {
     }
 
     const firstHighlight = highlights[0];
+    if (!firstHighlight) {
+      return text.substring(0, contextLength) + (text.length > contextLength ? '...' : '');
+    }
+    
     const start = Math.max(0, firstHighlight.start - contextLength);
     const end = Math.min(text.length, firstHighlight.end + contextLength);
 
@@ -402,15 +406,18 @@ export class ArabicSearchService {
     if (highlights.length === 0) return highlights;
 
     highlights.sort((a, b) => a.start - b.start);
-    const merged: SearchHighlight[] = [highlights[0]];
+    const firstHighlight = highlights[0];
+    if (!firstHighlight) return highlights;
+    
+    const merged: SearchHighlight[] = [firstHighlight];
 
     for (let i = 1; i < highlights.length; i++) {
       const current = highlights[i];
       const last = merged[merged.length - 1];
 
-      if (current.start <= last.end + 10) { // Merge if close
+      if (current && last && current.start <= last.end + 10) { // Merge if close
         last.end = Math.max(last.end, current.end);
-      } else {
+      } else if (current) {
         merged.push(current);
       }
     }

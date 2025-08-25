@@ -218,7 +218,9 @@ export class ArabicTextProcessingService {
    * Check if a word contains Arabic characters
    */
   private isArabicWord(word: string): boolean {
-    return ArabicTextProcessingService.ARABIC_RANGES.some(([start, end]) => {
+    return ArabicTextProcessingService.ARABIC_RANGES.some((range) => {
+      const [start, end] = range;
+      if (start === undefined || end === undefined) return false;
       return [...word].some(char => {
         const code = char.codePointAt(0) || 0;
         return code >= start && code <= end;

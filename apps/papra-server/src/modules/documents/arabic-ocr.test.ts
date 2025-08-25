@@ -93,7 +93,7 @@ describe('Arabic OCR Services', () => {
 
       expect(results).toBeInstanceOf(Array);
       expect(results.length).toBeGreaterThan(0);
-      expect(results[0].documentId).toBe(testDoc.id);
+      expect(results[0]?.documentId).toBe(testDoc.id);
     });
 
     it('should provide search statistics', async () => {
