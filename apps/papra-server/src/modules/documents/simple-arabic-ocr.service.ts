@@ -23,7 +23,7 @@ export class SimpleArabicOCRService {
   }
 
   /**
-   * Extract text from image with basic preprocessing
+   * Extract text from image with enhanced preprocessing and fallback
    */
   async extractTextFromImage(
     imageBuffer: ArrayBuffer | Buffer,
@@ -32,25 +32,28 @@ export class SimpleArabicOCRService {
     const buffer = imageBuffer instanceof ArrayBuffer ? Buffer.from(imageBuffer) : imageBuffer;
     
     try {
-      this.logger.info({ languages, bufferSize: buffer.length }, 'Starting OCR extraction');
+      this.logger.info({ languages, bufferSize: buffer.length }, 'Starting enhanced OCR extraction');
 
-      // Basic image preprocessing that actually works
+      // Enhanced image preprocessing
       const processedBuffer = await this.basicImageProcessing(buffer);
 
-      this.logger.info('Creating Tesseract worker');
-      const worker = await createWorker(languages);
+      // Try with optimized settings first
+      let bestResult = await this.runOCRWithSettings(processedBuffer, languages, 'optimized');
       
-      this.logger.info('Running OCR recognition');
-      const { data: { text, confidence } } = await worker.recognize(processedBuffer);
-      
-      this.logger.info({ confidence, textLength: text.length }, 'OCR recognition completed');
-      await worker.terminate();
+      // If confidence is low, try with different settings
+      if (bestResult.confidence < 70) {
+        this.logger.info({ confidence: bestResult.confidence }, 'Low confidence, trying alternative settings');
+        
+        const alternativeResult = await this.runOCRWithSettings(processedBuffer, languages, 'alternative');
+        
+        // Use the result with higher confidence
+        if (alternativeResult.confidence > bestResult.confidence) {
+          bestResult = alternativeResult;
+          this.logger.info({ confidence: bestResult.confidence }, 'Using alternative settings result');
+        }
+      }
 
-      return {
-        text: text.trim(),
-        confidence,
-        extractorName: 'simple-arabic-ocr',
-      };
+      return bestResult;
 
     } catch (error) {
       this.logger.error({ error, languages }, 'OCR extraction failed');
@@ -64,11 +67,59 @@ export class SimpleArabicOCRService {
   }
 
   /**
-   * Basic image processing that doesn't break
+   * Run OCR with specific settings
+   */
+  private async runOCRWithSettings(
+    processedBuffer: Buffer, 
+    languages: string[], 
+    settingsType: 'optimized' | 'alternative'
+  ): Promise<SimpleOCRResult> {
+    const worker = await createWorker(languages);
+    
+    try {
+      if (settingsType === 'optimized') {
+        // Configure Tesseract for better Arabic OCR
+        await worker.setParameters({
+          tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzءآأؤإئابةتثجحخدذرزسشصضطظعغفقكلمنهوىيًٌٍَُِّْٰٱٲٳٴٵٶٷٸٹٺٻټٽپٿڀځڂڃڄڅچڇڈډڊڋڌڍڎڏڐڑڒړڔڕږڗژڙښڛڜڝڞڟڠڡڢڣڤڥڦڧڨکڪګگڰڱڲڳڴڵڶڷڸڹںڻڼڽھڿہۂۃۄۅۆۇۈۉۊۋیۍێۏېۑےۓەۖۗۘۙۚۛۜ۝۞ۣ۟۠ۡۢۤۥۦۧۨ۩۪ۭ۫۬ۮۯ۰۱۲۳۴۵۶۷۸۹',
+          tessedit_pageseg_mode: '6', // Uniform block of text
+          tessedit_ocr_engine_mode: '3', // Default, based on what is available
+          preserve_interword_spaces: '1',
+          textord_heavy_nr: '1', // More aggressive noise removal
+          textord_min_linesize: '2.5', // Minimum line size
+        });
+      } else {
+        // Alternative settings for better accuracy
+        await worker.setParameters({
+          tessedit_pageseg_mode: '3', // Fully automatic page segmentation
+          tessedit_ocr_engine_mode: '1', // Neural nets LSTM engine
+          preserve_interword_spaces: '1',
+          textord_heavy_nr: '0', // Less aggressive noise removal
+          textord_min_linesize: '1.5', // Smaller minimum line size
+        });
+      }
+      
+      this.logger.info(`Running OCR recognition with ${settingsType} settings`);
+      const { data: { text, confidence } } = await worker.recognize(processedBuffer);
+      
+      this.logger.info({ confidence, textLength: text.length, settingsType }, 'OCR recognition completed');
+      
+      return {
+        text: text.trim(),
+        confidence,
+        extractorName: 'simple-arabic-ocr',
+      };
+
+    } finally {
+      await worker.terminate();
+    }
+  }
+
+  /**
+   * Enhanced image processing optimized for Arabic OCR
    */
   private async basicImageProcessing(imageBuffer: Buffer): Promise<Buffer> {
     try {
-      this.logger.debug('Starting basic image processing');
+      this.logger.debug('Starting enhanced image processing for Arabic OCR');
       
       // Get image metadata
       const metadata = await sharp(imageBuffer).metadata();
@@ -78,18 +129,24 @@ export class SimpleArabicOCRService {
         format: metadata.format 
       }, 'Image metadata');
 
-      // Simple, reliable preprocessing
+      // Enhanced preprocessing optimized for Arabic text
       const processedBuffer = await sharp(imageBuffer)
-        // Ensure reasonable size (not too small, not too large)
+        // Resize to optimal OCR size (higher resolution for better accuracy)
         .resize({ 
-          width: Math.min(Math.max(metadata.width || 1000, 1000), 3000),
+          width: Math.min(Math.max(metadata.width || 1500, 1500), 4000),
           withoutEnlargement: true,
           fit: 'inside'
         })
         // Convert to grayscale for better OCR
         .greyscale()
-        // Enhance contrast
+        // Enhance contrast more aggressively for Arabic text
         .normalize()
+        // Apply slight sharpening to improve text clarity
+        .sharpen({ sigma: 0.5, m1: 1, m2: 0.5 })
+        // Apply noise reduction to clean up the image
+        .median(1)
+        // Enhance contrast further
+        .linear(1.2, -0.1)
         // Convert to PNG for consistency
         .png()
         .toBuffer();
@@ -97,12 +154,12 @@ export class SimpleArabicOCRService {
       this.logger.debug({ 
         originalSize: imageBuffer.length, 
         processedSize: processedBuffer.length 
-      }, 'Image processing completed');
+      }, 'Enhanced image processing completed');
 
       return processedBuffer;
 
     } catch (error) {
-      this.logger.warn({ error }, 'Image processing failed, using original');
+      this.logger.warn({ error }, 'Enhanced image processing failed, using original');
       return imageBuffer;
     }
   }

@@ -9,7 +9,7 @@ export const documentStorageConfig = {
   maxUploadSize: {
     doc: 'The maximum size in bytes for an uploaded file. Set to 0 to disable the limit and allow uploading documents of any size.',
     schema: z.coerce.number().int().nonnegative(),
-    default: 10 * 1024 * 1024, // 10MB
+    default: 100 * 1024 * 1024, // 100MB (increased from 10MB)
     env: 'DOCUMENT_STORAGE_MAX_UPLOAD_SIZE',
   },
   driver: {
