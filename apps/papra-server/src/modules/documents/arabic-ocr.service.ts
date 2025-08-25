@@ -1,8 +1,32 @@
 import type { Logger } from '@crowlog/logger';
 import { Buffer } from 'node:buffer';
-import { createWorker, PSM, OEM } from 'tesseract.js';
+import { createWorker } from 'tesseract.js';
 import sharp from 'sharp';
 import { createLogger } from '../shared/logger/logger';
+
+// Tesseract PSM and OEM enums (compatible with tesseract.js v6)
+export enum PSM {
+  OSD_ONLY = 0,
+  AUTO_OSD = 1,
+  AUTO_ONLY = 2,
+  AUTO = 3,
+  SINGLE_COLUMN = 4,
+  SINGLE_UNIFORM_BLOCK = 5,
+  SINGLE_TEXT_LINE = 6,
+  SINGLE_WORD = 7,
+  SINGLE_CHAR = 8,
+  SPARSE_TEXT = 9,
+  SPARSE_TEXT_OSD = 10,
+  RAW_LINE = 11,
+  COUNT = 12
+}
+
+export enum OEM {
+  TESSERACT_ONLY = 0,
+  LSTM_ONLY = 1,
+  TESSERACT_LSTM_COMBINED = 2,
+  DEFAULT = 3
+}
 
 export interface ArabicOCRConfig {
   languages: string[];
@@ -255,11 +279,7 @@ export class ArabicOCRService {
           .blur(0.3)
           
           // Sharpen to enhance stroke edges for handwriting
-          .sharpen({ 
-            sigma: 1.5, 
-            flat: 1.2, 
-            jagged: 2.0 
-          })
+          .sharpen(1.5, 1.2, 2.0)
           
           // Morphological operations for handwriting
           .threshold(140, { greyscale: false }) // Adaptive thresholding
@@ -283,11 +303,7 @@ export class ArabicOCRService {
           })
           .greyscale()
           .normalize() // Standard contrast enhancement
-          .sharpen({
-            sigma: 1.0,
-            flat: 1.0,
-            jagged: 2.0
-          })
+          .sharpen(1.0, 1.0, 2.0)
           
           // Light gaussian blur to reduce scan artifacts
           .blur(0.2)
