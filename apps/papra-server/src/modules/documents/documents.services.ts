@@ -2,6 +2,7 @@ import type { Logger } from '@crowlog/logger';
 import { createLogger } from '../shared/logger/logger';
 import { getStreamSha256Hash } from '../shared/streams/stream-hash';
 import { ArabicDocumentProcessorService } from './arabic-document-processor.service';
+import { SimpleArabicOCRService } from './simple-arabic-ocr.service';
 import { createId } from '@paralleldrive/cuid2';
 
 export async function getFileHash({ fileStream }: { fileStream: ReadableStream<Uint8Array> }) {
@@ -27,8 +28,6 @@ export async function extractDocumentText({
   documentId?: string;
   logger?: Logger;
 }) {
-  const processor = new ArabicDocumentProcessorService(logger);
-  
   // Generate document ID if not provided
   const docId = documentId ?? createId();
 
@@ -41,27 +40,44 @@ export async function extractDocumentText({
     ocrLanguages
   }, 'Starting Arabic document processing');
 
-  try {
-    // Process the document using our comprehensive Arabic processor
-    const result = await processor.processDocument(file, docId, {
-      documentType,
-      languages: ocrLanguages,
-      enableSearch: true,
-      preprocessImage: true,
-      enhanceForHandwriting: documentType === 'handwritten',
-    });
+  // Validate file type
+  if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
+    const error = `Unsupported file type: ${file.type}`;
+    logger.error({ documentId: docId, fileType: file.type }, error);
+    return {
+      text: '',
+      confidence: 0,
+      error,
+      documentId: docId,
+    };
+  }
 
-    if (!result.success) {
+  try {
+    // Use simplified OCR service for reliability
+    const ocrService = new SimpleArabicOCRService(logger);
+    
+    // Determine languages to use - force Arabic as primary
+    const languages = SimpleArabicOCRService.forceArabicLanguages(ocrLanguages);
+
+    logger.info({ languages, documentType }, 'Using OCR languages');
+
+    // Convert file to buffer
+    const arrayBuffer = await file.arrayBuffer();
+    
+    // Extract text using simple OCR
+    const result = await ocrService.extractTextFromImage(arrayBuffer, languages);
+
+    if (result.error) {
       logger.error({ 
         documentId: docId, 
         error: result.error,
         fileName: file.name 
-      }, 'Arabic document processing failed');
+      }, 'OCR extraction failed');
       
       return {
         text: '',
         confidence: 0,
-        error: result.error || 'Unknown processing error',
+        error: result.error.message,
         documentId: docId,
       };
     }
@@ -71,33 +87,17 @@ export async function extractDocumentText({
       success: true,
       extractorName: result.extractorName,
       confidence: result.confidence,
-      textLength: result.extractedText.length,
-      arabicWordCount: result.metadata.arabicWordCount,
-      totalWordCount: result.metadata.totalWordCount,
-      language: result.language,
-      processingTime: result.processingTime,
-      keywordCount: result.keywords.length
-    }, 'Arabic document processing completed successfully');
+      textLength: result.text.length,
+      languages
+    }, 'OCR extraction completed successfully');
 
-    // Return in the expected format for backward compatibility
+    // Return in the expected format
     return {
-      text: result.extractedText,
-      normalizedText: result.normalizedText,
-      searchableText: result.searchableText,
-      keywords: result.keywords,
+      text: result.text,
       confidence: result.confidence,
-      language: result.language,
       extractorName: result.extractorName,
-      processingTime: result.processingTime,
       documentId: docId,
-      metadata: result.metadata,
-      analysis: {
-        hasArabicContent: result.metadata.arabicWordCount > 0,
-        arabicWordCount: result.metadata.arabicWordCount,
-        wordCount: result.metadata.totalWordCount,
-        language: result.language,
-        confidence: result.confidence,
-      },
+      languages,
     };
 
   } catch (error) {
@@ -106,7 +106,7 @@ export async function extractDocumentText({
       documentId: docId, 
       error, 
       fileName: file.name 
-    }, 'Unexpected error during Arabic document processing');
+    }, 'Unexpected error during OCR processing');
     
     return {
       text: '',

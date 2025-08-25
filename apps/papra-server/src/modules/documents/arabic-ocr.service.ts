@@ -276,13 +276,13 @@ export class ArabicOCRService {
           .normalize({ lower: 5, upper: 95 }) // Enhanced contrast normalization
           
           // Apply gaussian blur to reduce noise while preserving stroke structure
-          .blur(0.3)
+          .blur(0.5)
           
           // Sharpen to enhance stroke edges for handwriting
           .sharpen(1.5, 1.2, 2.0)
           
           // Morphological operations for handwriting
-          .threshold(140, { greyscale: false }) // Adaptive thresholding
+          .threshold(140) // Adaptive thresholding
           
           // Add border to prevent edge text cutoff
           .extend({
@@ -306,7 +306,7 @@ export class ArabicOCRService {
           .sharpen(1.0, 1.0, 2.0)
           
           // Light gaussian blur to reduce scan artifacts
-          .blur(0.2)
+          .blur(0.3)
           
           // Clean thresholding for printed text
           .threshold(120)
