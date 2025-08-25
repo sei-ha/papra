@@ -5,9 +5,46 @@ export const DOCUMENT_ID_REGEX = createPrefixedIdRegex({ prefix: DOCUMENT_ID_PRE
 
 export const ORIGINAL_DOCUMENTS_STORAGE_KEY = 'originals';
 
-// Hardcoding languages list for now, as the config schema is used in the doc app, the import of @papra/lecture fucks things up at build time due to tesseract
-// but would love to use the actual list from @papra/lecture
-//
-// import { ocrLanguages } from '@papra/lecture';
-// console.log(JSON.stringify(ocrLanguages));
-export const OCR_LANGUAGES = ['afr', 'amh', 'ara', 'asm', 'aze', 'aze_cyrl', 'bel', 'ben', 'bod', 'bos', 'bul', 'cat', 'ceb', 'ces', 'chi_sim', 'chi_tra', 'chr', 'cym', 'dan', 'deu', 'dzo', 'ell', 'eng', 'enm', 'epo', 'est', 'eus', 'fas', 'fin', 'fra', 'frk', 'frm', 'gle', 'glg', 'grc', 'guj', 'hat', 'heb', 'hin', 'hrv', 'hun', 'iku', 'ind', 'isl', 'ita', 'ita_old', 'jav', 'jpn', 'kan', 'kat', 'kat_old', 'kaz', 'khm', 'kir', 'kor', 'kur', 'lao', 'lat', 'lav', 'lit', 'mal', 'mar', 'mkd', 'mlt', 'msa', 'mya', 'nep', 'nld', 'nor', 'ori', 'pan', 'pol', 'por', 'pus', 'ron', 'rus', 'san', 'sin', 'slk', 'slv', 'spa', 'spa_old', 'sqi', 'srp', 'srp_latn', 'swa', 'swe', 'syr', 'tam', 'tel', 'tgk', 'tgl', 'tha', 'tir', 'tur', 'uig', 'ukr', 'urd', 'uzb', 'uzb_cyrl', 'vie', 'yid'] as const;
+// Arabic-focused OCR languages - prioritizing Arabic and related scripts
+export const ARABIC_PRIMARY_LANGUAGES = ['ara'] as const; // Arabic
+export const ARABIC_RELATED_LANGUAGES = ['fas', 'urd', 'pus', 'kur', 'uig'] as const; // Persian, Urdu, Pashto, Kurdish, Uyghur
+export const SUPPORTING_LANGUAGES = ['eng', 'fra'] as const; // English, French for mixed documents
+
+// Complete list of supported OCR languages for Arabic documents
+export const OCR_LANGUAGES = [
+  ...ARABIC_PRIMARY_LANGUAGES,
+  ...ARABIC_RELATED_LANGUAGES,
+  ...SUPPORTING_LANGUAGES,
+  // Additional languages that might appear in Arabic regions
+  'heb', // Hebrew
+  'tur', // Turkish
+  'rus', // Russian (for some regions)
+] as const;
+
+// Default language configuration for different document types
+export const DEFAULT_ARABIC_OCR_LANGUAGES = {
+  ARABIC_ONLY: ['ara'] as const,
+  ARABIC_ENGLISH: ['ara', 'eng'] as const,
+  MULTI_ARABIC: ['ara', 'fas', 'urd'] as const,
+  COMPREHENSIVE: ['ara', 'eng', 'fas', 'urd', 'heb', 'tur'] as const,
+} as const;
+
+// Document type detection patterns
+export const ARABIC_DOCUMENT_PATTERNS = {
+  PRINTED: {
+    confidence: 0.8,
+    languages: DEFAULT_ARABIC_OCR_LANGUAGES.ARABIC_ENGLISH,
+  },
+  HANDWRITTEN: {
+    confidence: 0.6,
+    languages: DEFAULT_ARABIC_OCR_LANGUAGES.ARABIC_ONLY,
+  },
+  MIXED: {
+    confidence: 0.7,
+    languages: DEFAULT_ARABIC_OCR_LANGUAGES.ARABIC_ENGLISH,
+  },
+  OFFICIAL: {
+    confidence: 0.9,
+    languages: DEFAULT_ARABIC_OCR_LANGUAGES.COMPREHENSIVE,
+  },
+} as const;
