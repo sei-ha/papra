@@ -2,7 +2,7 @@ import type { Logger } from '@crowlog/logger';
 import { createLogger } from '../shared/logger/logger';
 import { getStreamSha256Hash } from '../shared/streams/stream-hash';
 import { ArabicDocumentProcessorService } from './arabic-document-processor.service';
-import { SimpleArabicOCRService } from './simple-arabic-ocr.service';
+import { ArabicOCRService, type ArabicOCRConfig } from './arabic-ocr.service';
 import { createId } from '@paralleldrive/cuid2';
 
 export async function getFileHash({ fileStream }: { fileStream: ReadableStream<Uint8Array> }) {
@@ -53,19 +53,31 @@ export async function extractDocumentText({
   }
 
   try {
-    // Use simplified OCR service for reliability
-    const ocrService = new SimpleArabicOCRService(logger);
+    // Use advanced Arabic OCR service for superior results
+    const ocrService = new ArabicOCRService(logger);
     
-    // Determine languages to use - force Arabic as primary
-    const languages = SimpleArabicOCRService.forceArabicLanguages(ocrLanguages);
+    // Get optimal configuration for the document type
+    const baseConfig = ArabicOCRService.getOptimalLanguageConfig(documentType);
+    
+    // Override languages if specified, but ensure Arabic is included
+    const languages = ocrLanguages && ocrLanguages.length > 0 
+      ? [...new Set([...baseConfig.languages, ...ocrLanguages])] // Merge and deduplicate
+      : baseConfig.languages;
 
-    logger.info({ languages, documentType }, 'Using OCR languages');
+    logger.info({ languages, documentType, config: baseConfig }, 'Using advanced Arabic OCR');
 
     // Convert file to buffer
     const arrayBuffer = await file.arrayBuffer();
     
-    // Extract text using simple OCR
-    const result = await ocrService.extractTextFromImage(arrayBuffer, languages);
+    // Create OCR configuration
+    const ocrConfig: ArabicOCRConfig = {
+      ...baseConfig,
+      languages,
+      logger,
+    };
+    
+    // Extract text using advanced Arabic OCR
+    const result = await ocrService.extractTextFromImage(arrayBuffer, ocrConfig);
 
     if (result.error) {
       logger.error({ 
