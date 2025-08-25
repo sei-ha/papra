@@ -1,6 +1,6 @@
 import type { Logger } from '@crowlog/logger';
 import { Buffer } from 'node:buffer';
-import { createWorker } from 'tesseract.js';
+import { createWorker, PSM, OEM } from 'tesseract.js';
 import sharp from 'sharp';
 import { createLogger } from '../shared/logger/logger';
 
@@ -81,8 +81,8 @@ export class SimpleArabicOCRService {
         // Configure Tesseract for better Arabic OCR
         await worker.setParameters({
           tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzءآأؤإئابةتثجحخدذرزسشصضطظعغفقكلمنهوىيًٌٍَُِّْٰٱٲٳٴٵٶٷٸٹٺٻټٽپٿڀځڂڃڄڅچڇڈډڊڋڌڍڎڏڐڑڒړڔڕږڗژڙښڛڜڝڞڟڠڡڢڣڤڥڦڧڨکڪګگڰڱڲڳڴڵڶڷڸڹںڻڼڽھڿہۂۃۄۅۆۇۈۉۊۋیۍێۏېۑےۓەۖۗۘۙۚۛۜ۝۞ۣ۟۠ۡۢۤۥۦۧۨ۩۪ۭ۫۬ۮۯ۰۱۲۳۴۵۶۷۸۹',
-          tessedit_pageseg_mode: '6', // Uniform block of text
-          tessedit_ocr_engine_mode: '3', // Default, based on what is available
+          tessedit_pageseg_mode: PSM.UNIFORM_BLOCK_OF_TEXT, // Uniform block of text
+          tessedit_ocr_engine_mode: OEM.DEFAULT, // Default, based on what is available
           preserve_interword_spaces: '1',
           textord_heavy_nr: '1', // More aggressive noise removal
           textord_min_linesize: '2.5', // Minimum line size
@@ -90,8 +90,8 @@ export class SimpleArabicOCRService {
       } else {
         // Alternative settings for better accuracy
         await worker.setParameters({
-          tessedit_pageseg_mode: '3', // Fully automatic page segmentation
-          tessedit_ocr_engine_mode: '1', // Neural nets LSTM engine
+          tessedit_pageseg_mode: PSM.FULLY_AUTOMATIC, // Fully automatic page segmentation
+          tessedit_ocr_engine_mode: OEM.LSTM_ONLY, // Neural nets LSTM engine
           preserve_interword_spaces: '1',
           textord_heavy_nr: '0', // Less aggressive noise removal
           textord_min_linesize: '1.5', // Smaller minimum line size

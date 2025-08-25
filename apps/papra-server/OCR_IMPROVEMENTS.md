@@ -33,7 +33,8 @@ This change allows:
 
 #### Tesseract Configuration Improvements:
 - **Arabic Character Whitelist**: Added comprehensive Arabic character set
-- **Page Segmentation**: Optimized for uniform text blocks
+- **Page Segmentation**: Optimized for uniform text blocks using PSM.UNIFORM_BLOCK_OF_TEXT
+- **OCR Engine**: Uses OEM.DEFAULT and OEM.LSTM_ONLY for better accuracy
 - **Noise Removal**: More aggressive noise removal for Arabic text
 - **Fallback Mechanism**: If confidence < 70%, tries alternative settings
 
